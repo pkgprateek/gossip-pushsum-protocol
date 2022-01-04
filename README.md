@@ -21,7 +21,7 @@ in F#. Since actors in F# are fully asynchronous, the particular type of Gossip 
 ## Requirements:
 
 ### Input:
-The input provided (as command line to your project2) will be of the form:
+The input provided (with command line to run this code) will be of the form:
 ```console
 foo@bar~$ dotnet fsi gossip.fsx numNodes topology algorithm
 ```
