@@ -108,6 +108,48 @@ let participant (mailbox : Actor<_>) =
         return! messageLoop()
     }
     messageLoop ()
+
+let pushsumParticipant (mailbox: Actor<_>) =
+    
+    let mutable s = 0.0
+    let mutable w = 0.0
+    let mutable sNew = 0.0
+    let mutable wNew = 0.0
+    let mutable ratioOld = 0.0
+    let mutable ratioNew = 0.0
+    let mutable diff : double = 0.0
+    let mutable pushsumCount = 0
+
+    let rec messageLoop () = 
+        actor {
+            let! msg = mailbox.Receive()
+            match msg with
+            | PushSum(xi, wi, myNeighbours, c) ->
+                if c = 1 then
+                    sNew <- s + xi
+                    wNew <- w + wi
+                    ratioNew <- sNew / wNew
+                    diff <- ratioNew - ratioOld
+                    if pushsumCount = 3 then
+                        mailbox.Context.System.Terminate() |> ignore
+                        converger <! Converged("Done")
+                    elif diff <= estimate then
+                        pushsumCount <- pushsumCount + 1
+                    else
+                        s <- sNew
+                        w <- wNew
+                        ratioOld <- s / w
+                        let selectRandom, newNeighbours = randomNeighbour myNeighbours
+                        participantenum.[selectRandom] <! PushSum(s/2.0, w/2.0, newNeighbours, 1)
+                        mailbox.Self <! PushSum(s, w, myNeighbours, 0)
+                else
+                    let selectRandom, newNeighbours = randomNeighbour myNeighbours
+                    participantenum.[selectRandom] <! PushSum(s / 2.0, w / 2.0, newNeighbours, 1)
+                    mailbox.Self <! PushSum(s, w, myNeighbours, 0)
+            |_ -> ()
+            return! messageLoop()
+        }
+    messageLoop ()
     
     // Main Actor
 let mainActor (mailbox : Actor<_>) = 
@@ -138,9 +180,6 @@ let mainActor (mailbox : Actor<_>) =
                 return! messageLoop ()
             }
     messageLoop ()
-
-
-
 
 //Take commandline input
 let args : string array = fsi.CommandLineArgs |> Array.tail
