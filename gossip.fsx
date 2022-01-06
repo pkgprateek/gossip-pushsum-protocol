@@ -176,6 +176,42 @@ let mainActor (mailbox : Actor<_>) =
                             [0 .. numNodes-1]
                                 |> List.map(fun i -> spawn system (sprintf "Participant_%d" i) pushsumParticipant )
                         participantenum <- Array.ofList(participantPool)
+                
+                // Full Topology
+                    if topology = "full" then
+                        fullTopo <- [|0 .. numNodes-1|]
+                        match algorithm with 
+                        | "gossip" ->
+                            timer.Start()
+                            let starter, _ = randomNeighbour fullTopo
+                            let neighbours = (Array.filter (fun elem -> elem <> starter) fullTopo)
+                            participantenum.[starter] <! Rumour(neighbours, rumour, 1)
+                        | "pushsum" ->
+                            timer.Start()
+                            let starter, _ = randomNeighbour fullTopo
+                            let neighbours = (Array.filter (fun elem -> elem <> starter) fullTopo)
+                            participantenum.[starter] <! PushSum(float starter, 1.0, neighbours, 1)
+                        |_ -> ()
+
+                   // 3D Topology
+                    elif topology = "3d" then
+                        let x : int = int ((float numNodes)**(1.0/3.0) + 1.0)
+                        let mutable topo = Array.zeroCreate numNodes
+                        for i in 0 .. numNodes-1 do
+                            let neighbours = (Array.filter (fun k -> k >= 0 && k < numNodes) [|i-1; i + 1; i - x; i + x; i - x*x; i + x*x|])
+                            topo.[i] <- neighbours
+                        threeDTopo <- topo
+                        match algorithm with
+                        | "gossip" ->
+                            timer.Start()
+                            let starter = Random().Next(numNodes)
+                            participantenum.[starter] <! Rumour(threeDTopo.[starter], rumour, 1)
+                        | "pushsum" ->
+                            timer.Start()
+                            let starter = Random().Next(numNodes)
+                            participantenum.[starter] <! PushSum(float starter, 1.0, threeDTopo.[starter], 1)
+                        |_ -> ()
+
                 | _-> printfn "I am not what you expect"
                 return! messageLoop ()
             }
